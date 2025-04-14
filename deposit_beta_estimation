@@ -1,0 +1,38 @@
+# Simulate historical deposit rate data
+np.random.seed(42)
+months = 60
+fed_rates = np.cumsum(np.random.normal(0, 0.002, months)) + 0.02
+deposit_rates = 0.5 + 0.3 * fed_rates + np.random.normal(0, 0.001, months)
+
+def estimate_deposit_beta(fed_rates, deposit_rates, lookback=24):
+    """Rolling beta estimation using OLS"""
+    betas = []
+    pvalues = []
+    
+    for i in range(lookback, len(fed_rates)):
+        X = sm.add_constant(fed_rates[i-lookback:i])
+        y = deposit_rates[i-lookback:i]
+        model = sm.OLS(y, X).fit()
+        betas.append(model.params[1])
+        pvalues.append(model.pvalues[1])
+        
+    return pd.DataFrame({
+        'beta': betas,
+        'p_value': pvalues,
+        'date': pd.date_range(start='2018-01-01', periods=len(betas),  # Adjust as needed
+    })
+
+# Run analysis
+beta_results = estimate_deposit_beta(fed_rates, deposit_rates)
+print(f"Average Beta: {beta_results['beta'].mean():.2f}")
+
+# Visualize
+plt.figure(figsize=(10,5))
+plt.plot(beta_results['date'], beta_results['beta'], label='Rolling Beta')
+plt.axhline(beta_results['beta'].mean(), color='r', linestyle='--', label='Mean Beta')
+plt.title('Historical Deposit Beta Estimation')
+plt.xlabel('Date')
+plt.ylabel('Beta Coefficient')
+plt.legend()
+plt.grid()
+plt.show()
