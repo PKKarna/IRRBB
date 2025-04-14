@@ -1,0 +1,89 @@
+import numpy as np
+import pandas as pd
+import statsmodels.api as sm
+from scipy.optimize import minimize
+
+class RichardRollPrepaymentModel:
+    def __init__(self, pool_size=5e9, coupon_rate=0.04, current_market_rate=0.03, 
+                 wac=0.045, seasoning_months=24, burnout_factor=0.3):
+        self.pool_size = pool_size
+        self.coupon_rate = coupon_rate
+        self.current_market_rate = current_market_rate
+        self.wac = wac  # Weighted Average Coupon
+        self.seasoning = seasoning_months
+        self.burnout = burnout_factor
+        
+    def refinancing_incentive(self):
+        """Calculate refinancing incentive ratio"""
+        return (self.coupon_rate / self.current_market_rate) - 1
+    
+    def seasoning_multiplier(self, t):
+        """Seasoning ramp over 30 months"""
+        return min(t / 30, 1.0)
+    
+    def burnout_effect(self, prev_prepayments):
+        """Burnout factor (0 to 1)"""
+        return np.exp(-self.burnout * prev_prepayments)
+    
+    def monthly_prepayment_rate(self, period, prev_prepayments=0):
+        """Calculate CPR using Richard-Roll model components"""
+        ri = self.refinancing_incentive()
+        season = self.seasoning_multiplier(period)
+        burnout = self.burnout_effect(prev_prepayments)
+        
+        # Base CPR (adjust coefficients based on empirical data)
+        cpr = 0.06 * ri * season * burnout
+        return min(max(cpr, 0), 0.6)  # Cap at 60% CPR
+    
+    def generate_cashflows(self, term_years=10):
+        """Generate monthly cashflows with prepayments"""
+        n_periods = term_years * 12
+        balance = self.pool_size
+        monthly_rate = self.coupon_rate / 12
+        schedule = []
+        total_prepaid = 0
+        
+        for t in range(1, n_periods + 1):
+            # Scheduled payment
+            payment = balance * monthly_rate / (1 - (1 + monthly_rate)**(-n_periods + t - 1))
+            
+            # Prepayment calculation
+            cpr = self.monthly_prepayment_rate(t, total_prepaid/self.pool_size)
+            smm = 1 - (1 - cpr)**(1/12)  # Single Month Mortality
+            prepayment = balance * smm
+            
+            # Update balance
+            interest = balance * monthly_rate
+            principal = payment - interest + prepayment
+            balance -= principal
+            
+            total_prepaid += prepayment
+            schedule.append({
+                'period': t,
+                'balance': balance,
+                'interest': interest,
+                'scheduled_principal': payment - interest,
+                'prepayment': prepayment,
+                'total_payment': payment + prepayment,
+                'cpr': cpr
+            })
+            
+            if balance <= 0:
+                break
+                
+        return pd.DataFrame(schedule)
+
+# Example Usage
+mortgage_pool = RichardRollPrepaymentModel(current_market_rate=0.025)  # Rates dropped to 2.5%
+cashflows = mortgage_pool.generate_cashflows()
+print(cashflows.head())
+
+# Plot prepayment speeds
+import matplotlib.pyplot as plt
+plt.figure(figsize=(10,5))
+plt.plot(cashflows['period'], cashflows['cpr']*100, label='CPR %')
+plt.title('Richard-Roll Prepayment Model: CPR over Time')
+plt.xlabel('Month')
+plt.ylabel('CPR (%)')
+plt.grid()
+plt.show()
