@@ -128,9 +128,9 @@ Who Should Attend?
       
       Regulatory reporting specialists
 
-Outcome
-    By the end of the session, participants will:
-    ✔ Understand core IRRBB concepts (NII, EVE, FTP) and their mathematical foundations.
-    ✔ Be able to construct basic IRRBB models for sensitivity analysis.
-    ✔ Gain insights into regulatory reporting requirements.
-    ✔ Apply learnings to real-world banking book risk management.
+6. Outcome
+       By the end of the session, participants will:
+                ✔ Understand core IRRBB concepts (NII, EVE, FTP) and their mathematical foundations.
+                ✔ Be able to construct basic IRRBB models for sensitivity analysis.
+                ✔ Gain insights into regulatory reporting requirements.
+                ✔ Apply learnings to real-world banking book risk management.
